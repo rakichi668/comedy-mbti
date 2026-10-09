@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>お笑い版MBTI診断 - 16タイプの芸人・裏方・観客診断</title>
+<style>
+  :root {
+    --agree-color: #33a474;
+    --disagree-color: #88619a;
+    --neutral-color: #999999;
+    --bg-color: #f3f4f6;
+    --card-bg: #ffffff;
+    --text-main: #333333;
+  }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background-color: var(--bg-color);
+    color: var(--text-main);
+    margin: 0;
+    padding: 0;
+    line-height: 1.6;
+  }
+  #progress-container {
+    position: fixed;
+    top: 0; left: 0; width: 100%;
+    height: 6px; background: #e2e8f0;
+    z-index: 1000;
+  }
+  #progress-bar {
+    height: 100%; background: var(--agree-color); width: 0%;
+    transition: width 0.3s ease;
+  }
+  .header {
+    text-align: center;
+    padding: 40px 20px 20px;
+    background-color: var(--card-bg);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    margin-bottom: 30px;
+  }
+  .header h1 { margin: 0; font-size: 24px; color: var(--text-main); }
+  .header p { color: #666; font-size: 14px; margin-top: 10px; font-weight: bold; }
+  
+  .container {
+    max-width: 700px;
+    margin: 0 auto;
+    padding: 0 20px 60px;
+  }
+  
+  /* 1問ずつ表示するためのスタイル */
+  .question-card {
+    display: none;
+    background: var(--card-bg);
+    border-radius: 12px;
+    padding: 40px 20px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+    text-align: center;
+    animation: fadeIn 0.4s ease;
+  }
+  .question-card.active {
+    display: block;
+  }
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .question-text {
+    font-size: 20px;
+    font-weight: bold;
+    margin-bottom: 40px;
+    color: var(--text-main);
+    line-height: 1.5;
+  }
+  
+  /* 5段階ボタンのスタイリング */
+  .options-wrapper {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 15px;
+    margin-bottom: 20px;
+  }
+  .options-wrapper label {
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .options-wrapper input[type="radio"] { display: none; }
+  
+  .circle {
+    display: block;
+    border-radius: 50%;
+    border: 3px solid;
+    transition: all 0.2s ease;
+    margin: 0 auto;
+  }
+  .circle:hover { opacity: 0.7; }
+  
+  .agree-2 { width: 55px; height: 55px; border-color: var(--agree-color); }
+  .agree-1 { width: 45px; height: 45px; border-color: var(--agree-color); }
+  .neutral { width: 35px; height: 35px; border-color: var(--neutral-color); }
+  .disagree-1 { width: 45px; height: 45px; border-color: var(--disagree-color); }
+  .disagree-2 { width: 55px; height: 55px; border-color: var(--disagree-color); }
+  
+  input:checked + .agree-2 { background-color: var(--agree-color); }
+  input:checked + .agree-1 { background-color: var(--agree-color); }
+  input:checked + .neutral { background-color: var(--neutral-color); }
+  input:checked + .disagree-1 { background-color: var(--disagree-color); }
+  input:checked + .disagree-2 { background-color: var(--disagree-color); }
+  
+  .label-text {
+    font-weight: bold;
+    font-size: 15px;
+  }
+  .label-agree { color: var(--agree-color); }
+  .label-disagree { color: var(--disagree-color); }
+  
+  .mobile-labels {
+    display: none;
+    justify-content: space-between;
+    margin-bottom: 20px;
+    font-weight: bold;
+    font-size: 14px;
+    padding: 0 10px;
+  }
+
+  /* ナビゲーションボタン */
+  .nav-buttons {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 30px;
+  }
+  .nav-btn {
+    padding: 12px 24px;
+    border: none;
+    background: #e2e8f0;
+    border-radius: 30px;
+    cursor: pointer;
+    font-weight: bold;
+    color: var(--text-main);
+    font-size: 15px;
+    transition: 0.2s;
+  }
+  .nav-btn:hover:not(:disabled) { background: #cbd5e1; }
+  .nav-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  
+  .submit-btn-small { background: var(--text-main); color: #fff; }
+  .submit-btn-small:hover { background: #555; }
+
+  @media (max-width: 600px) {
+    .options-wrapper { gap: 10px; }
+    .label-desktop { display: none; }
+    .mobile-labels { display: flex; }
+    .agree-2 { width: 45px; height: 45px; }
+    .agree-1 { width: 38px; height: 38px; }
+    .neutral { width: 32px; height: 32px; }
+    .disagree-1 { width: 38px; height: 38px; }
+    .disagree-2 { width: 45px; height: 45px; }
+  }
+
+  /* 結果画面のスタイリング */
+  #result-container { display: none; }
+  .result-card {
+    background: var(--card-bg);
+    border-radius: 12px;
+    padding: 40px 20px;
+    text-align: center;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+  }
+  .result-type { font-size: 20px; color: #666; font-weight: bold; letter-spacing: 2px;}
+  .result-title { font-size: 32px; color: var(--text-main); margin: 10px 0 20px; }
+  .result-desc { font-size: 16px; text-align: left; padding: 20px; background: #f8f9fa; border-radius: 8px; margin-bottom: 30px; }
+  .match-box {
+    border: 2px solid var(--text-main);
+    border-radius: 8px;
+    padding: 15px;
+    margin-top: 20px;
+    font-weight: bold;
+  }
+  
+  /* パラメーターバー */
+  .bar-container { margin: 20px 0; }
+  .bar-labels { display: flex; justify-content: space-between; font-size: 14px; font-weight: bold; margin-bottom: 5px; }
+  .bar-outer { height: 12px; background: #e2e8f0; border-radius: 6px; overflow: hidden; position: relative; }
+  .bar-inner { height: 100%; background: var(--agree-color); position: absolute; left: 0; transition: width 1s; }
+  .bar-inner.right { background: var(--disagree-color); right: 0; left: auto; }
+</style>
+</head>
+<body>
+
+<div id="progress-container"><div id="progress-bar"></div></div>
+
+<div id="quiz-page">
+  <div class="header">
+    <h1>お笑い版MBTI診断</h1>
+    <p>直感で答えてください（<span id="q-counter">1 / 60</span>）</p>
+  </div>
+  <div class="container" id="quiz-container">
+    <!-- 質問がここにJSで生成されます -->
+    
+    <!-- ナビゲーション領域 -->
+    <div class="nav-buttons">
+      <button id="prev-btn" onclick="prevQuestion()" class="nav-btn" disabled>← 前の質問</button>
+      <button id="next-btn" onclick="nextQuestion()" class="nav-btn">次の質問 →</button>
+      <button id="submit-btn" onclick="submitQuiz()" class="nav-btn submit-btn-small" style="display:none;">診断結果を見る</button>
+    </div>
+  </div>
+</div>
+
+<div id="result-page" style="display:none;">
+  <div class="header">
+    <h1>あなたの診断結果</h1>
+  </div>
+  <div class="container" id="result-container-content">
+    <!-- 結果がここにJSで生成されます -->
+  </div>
+</div>
+
+<script>
+// Qデータ (全60問)
+const qEI = [
+  {t:"複数人で歩くとき、自然と先頭集団を歩いていることが多い。", d:1},
+  {t:"SNSでは自分から投稿するより、他人の投稿を見て楽しむ時間の方が圧倒的に長い。", d:-1},
+  {t:"トラブルが起きた時、自ら解決に動くより、誰かがどう対処するかを観察してしまう。", d:-1},
+  {t:"集合写真を撮る時、気づけば前列や中心付近にいることが多い。", d:1},
+  {t:"「話し上手」と言われるより、「聞き上手」と言われることの方が多い。", d:-1},
+  {t:"学生時代の文化祭などの行事では、裏方の作業よりも目立つポジションを選びがちだった。", d:1},
+  {t:"自分の考えたアイデアは、自分で実行するより他人に形にしてもらう方が気が楽だ。", d:-1},
+  {t:"静かな空間にいると、何か音を出したり喋ったりしてその場を埋めたくなる。", d:1},
+  {t:"カフェや電車などで、見知らぬ人の会話をこっそり聞いてしまうのが好きだ。", d:-1},
+  {t:"人の失敗談を聞くより、自分の恥ずかしいエピソードを話す方が好きだ。", d:1},
+  {t:"初対面の人ばかりの場でも、自分から積極的に話しかけに行くことができる。", d:1},
+  {t:"会議や話し合いでは、まず他人の意見が出揃うのを待ってから発言したい。", d:-1},
+  {t:"サプライズは「仕掛ける中心人物」よりも「手伝う側」になることが多い。", d:-1},
+  {t:"面白い出来事があったら、テキストで送るより直接会って身振り手振りで話したい。", d:1},
+  {t:"映画やドラマを見た後、人と感想を語り合うよりも、一人で考察サイトを読む時間が好きだ。", d:-1}
+];
+
+const qNS = [
+  {t:"「もしも明日、世界中の人が突然バナナになったら」といった意味のない妄想をよくする。", d:1},
+  {t:"映画や小説は、SFやファンタジーよりも、実話を基にしたリアルな作品の方が好きだ。", d:-1},
+  {t:"「確かに！わかる！」と共感できる話よりも、「なんだそれ！」と理解不能な話の方に惹かれる。", d:1},
+  {t:"ルールやマニュアルがしっかり決まっている環境の方が、安心して力を発揮できる。", d:-1},
+  {t:"友達のちょっとした言い間違いから、全く別の架空のストーリーを広げて遊ぶのが好きだ。", d:1},
+  {t:"情報収集をするときは、個人のオピニオンよりも、客観的な事実やニュースを重視する。", d:-1},
+  {t:"誰かの話を聞いていて、「現実的に考えてそれはあり得ない」と心の中で訂正してしまうことが多い。", d:-1},
+  {t:"「なぜか分からないけど無性に惹かれる」という直感だけで物事を決めることが多い。", d:1},
+  {t:"人に話をする時は、起承転結を意識して分かりやすく順序立てて話すよう心がけている。", d:-1},
+  {t:"睡眠中に見る夢の内容が、現実離れしていてカオスなことが多い。", d:1},
+  {t:"「普通はこうするよね」という世間一般の感覚からズレたくないという思いが強い。", d:-1},
+  {t:"例え話をする時、誰も知らないようなマニアックな例を出して相手をポカンとさせることがある。", d:1},
+  {t:"突発的なハプニングが起きるよりも、予定通りに物事が進むことに喜びを感じる。", d:-1},
+  {t:"日常の些細な風景から、「もしここが宇宙船の中だったら」などと設定を書き換えて遊ぶことがある。", d:1},
+  {t:"奇抜なファッションや、一風変わったデザインの小物を好んで選ぶ傾向がある。", d:1}
+];
+
+const qTF = [
+  {t:"感動的な映画で涙を流すより、「どうやってこの伏線を回収したのか」と脚本の妙に感心しがちだ。", d:1},
+  {t:"場の空気が盛り上がっていれば、多少理屈が通っていなくても気にせず楽しめる。", d:-1},
+  {t:"なぜそれが面白いのか、その「構造」や「メカニズム」を言葉で言語化して分析するのが好きだ。", d:1},
+  {t:"「論理的だね」と言われるより、「情熱的だね」「あったかいね」と言われる方が嬉しい。", d:-1},
+  {t:"トラブルの相談を受けた時、まずは感情に寄り添うよりも、具体的な解決策を提示してしまう。", d:1},
+  {t:"スポーツ観戦では、戦術の分析よりも選手の気迫やドラマチックな展開に心を打たれる。", d:-1},
+  {t:"人にエピソードを話す時、オチから逆算して一番効果的なフリ（前振り）を考えてから話し始める。", d:1},
+  {t:"理屈はよくわからないけど、勢いや声の大きさで押し切られるとつい笑ってしまう。", d:-1},
+  {t:"買い物をするときは、直感やワクワク感よりも、スペックや費用対効果を重視する。", d:1},
+  {t:"自分の意見を伝える時、データや根拠よりも「どれだけ本気か」という熱量で相手を動かしたい。", d:-1},
+  {t:"ゲームをプレイする時、効率的な攻略法や最適解を調べてから進めるのが好きだ。", d:1},
+  {t:"音楽は歌詞の意味や曲の構成よりも、メロディやリズムのノリで好きになることが多い。", d:-1},
+  {t:"会話の中で、相手の言葉の定義の矛盾や、論理の飛躍がどうしても気になってしまう。", d:1},
+  {t:"誰かが一生懸命頑張っている姿を見ると、結果に関わらず無条件で応援したくなる。", d:-1},
+  {t:"自分が何かで失敗した時、「なぜ失敗したか」の要因分析を無意識のうちに行っている。", d:1}
+];
+
+const qJP = [
+  {t:"会話に沈黙が生まれた時、自分から全く新しい話題を投げ込むことが多い。", d:1},
+  {t:"相手の服装や髪型のちょっとした変化に気づき、すぐに指摘する方だ。", d:-1},
+  {t:"イタズラをされるよりも、誰かにイタズラを仕掛けて反応を見る方が好きだ。", d:1},
+  {t:"誰かが変なことを言った時、放置せずに「なんでだよ！」と何かしらの反応を返さないと気が済まない。", d:-1},
+  {t:"グループで行動する時、目的や行き先は自分が提案して決めることが多い。", d:1},
+  {t:"散らかった部屋や、整理されていないスケジュールを見ると、自分が綺麗に正したくなる。", d:-1},
+  {t:"わざと間違えたことを言って、相手がどう反応するか試すようなコミュニケーションをとることがある。", d:1},
+  {t:"日常生活で「ツッコミどころ」のある看板や変な人を見つけるのが得意だ。", d:-1},
+  {t:"会話の主導権を握って話し続けるよりも、相手が話しやすいように相槌を打つ方が得意だ。", d:-1},
+  {t:"新しいコミュニティに入った時、まずは自分から独自のキャラクターを確立しにいく。", d:1},
+  {t:"友達と歩いていて、友達が急に変な動きをしたら、自分も変な動きで乗っかるよりは「どうした？」と聞く。", d:-1},
+  {t:"ルールブックにない新しい遊びを、その場で考えて提案するのが得意だ。", d:1},
+  {t:"トーク番組を見ている時、話している本人よりも、周りの人がどうリアクションしているかの方を見てしまう。", d:-1},
+  {t:"自分の突拍子もない行動で、周りの人が振り回されているのを見ると密かに快感を覚える。", d:1},
+  {t:"日記やSNSを書く時、「今日自分が何をしたか」より「今日周りでどんな面白いことが起きたか」を書くことが多い。", d:-1}
+];
+
+// 全60問を順番に配列化
+const questions = [];
+for(let i=0; i<15; i++) {
+  questions.push({ id: `q${i*4}`, axis: 'E', dir: qEI[i].d, text: qEI[i].t });
+  questions.push({ id: `q${i*4+1}`, axis: 'N', dir: qNS[i].d, text: qNS[i].t });
+  questions.push({ id: `q${i*4+2}`, axis: 'T', dir: qTF[i].d, text: qTF[i].t });
+  questions.push({ id: `q${i*4+3}`, axis: 'J', dir: qJP[i].d, text: qJP[i].t });
+}
+
+// 16タイプのデータ
+const typeData = {
+  "ENTJ": { name: "伏線回収屋", desc: "【プレイヤー】一語一句台本にこだわる生粋の真面目ネタ書きタイプ。論理と構成を愛し、計算し尽くされた笑いで勝負します。", match: "ISFP" },
+  "ENTP": { name: "斜め上の毒舌家", desc: "【プレイヤー】世間の常識やタブーを鋭い視点と偏見で斬るロジカルなツッコミタイプ。頭の回転の速さは随一です。", match: "ISFJ" },
+  "ENFJ": { name: "憑依型カメレオン", desc: "【プレイヤー】ネタに入り込み完全に別人に化ける天才肌。独自のキャラ設定を降ろしてくる憑依型の演者です。", match: "ISTP" },
+  "ENFP": { name: "不調和クラッシャー", desc: "【プレイヤー】台本も進行もすべてぶっ壊して自分のノリに持ち込む劇薬。爆発力は最強ですが、周囲はハラハラします。", match: "ISTJ" },
+  "ESTJ": { name: "絶対的司令塔", desc: "【プレイヤー】全員の良さを引き出しながら場を回す名MC。空気を読む力と情報を整理する力が異常に高いです。", match: "INFP" },
+  "ESTP": { name: "ワードの魔術師", desc: "【プレイヤー】独特な例えや単語のチョイスで、ワンフレーズで空気を変えるツッコミ職人。瞬発力で生きています。", match: "INFJ" },
+  "ESFJ": { name: "飲み会エンターテイナー", desc: "【アマチュア】何も恐れず走り出す、怖いもの知らずの陽気者。「funny」と「interesting」の線引きは薄く、プロと素人の表裏一体の存在。", match: "INTP" },
+  "ESFP": { name: "巻き込まれリアクター", desc: "【プレイヤー】周りの奇行に振り回され、困り顔や嘆きで笑いを取るタイプ。大衆からの共感度ナンバーワンです。", match: "INTJ" },
+  "INTJ": { name: "孤高のハガキ職人", desc: "【クリエイター】大喜利やテキスト上では圧倒的なセンスを発揮しますが、人前や舞台には絶対出たくない裏方気質です。", match: "ESFP" },
+  "INTP": { name: "腕組みルポライター", desc: "【クリエイター】賞レースを予選から分析し「間」や「構成」を的確に語る評論家。ただし自分では全くネタを作れません。", match: "ESFJ" },
+  "INFJ": { name: "ニヤニヤ放送作家", desc: "【クリエイター】「あいつにこう言ってこい」などの裏回しが得意。あくまで他人が主役であり、自分は安全圏から楽しみます。", match: "ESTP" },
+  "INFP": { name: "隅っこサブカル狂い", desc: "【アマチュア】地下ライブに足繁く通い、誰も理解できない不条理でシュールな笑いだけを高尚だと信奉しているタイプです。", match: "ESTJ" },
+  "ISTJ": { name: "マジレス引き締めマン", desc: "【不適合者】明らかなボケに対して「法律上アウトだよ」と事実で論破してしまうタイプ。笑いの場を氷点下に導きます。", match: "ENFP" },
+  "ISTP": { name: "完全無風の一般人", desc: "【不適合者】ボケとツッコミの概念すら曖昧。「なんでこの人たちずっと怒ってるの？」と漫才を見て本気で疑問に思うタイプです。", match: "ENFJ" },
+  "ISFJ": { name: "出待ちガチ勢", desc: "【観客】ネタの構成よりも、芸人同士の仲の良さやビジュアル、エモい関係性に最も熱狂する生粋のファンタイプです。", match: "ENTP" },
+  "ISFP": { name: "ゲラ・最高の観客", desc: "【観客】面白くても面白くなくても、ちょっとした動きで全部笑ってくれる、演者にとって神様のような最高の観客です。", match: "ENTJ" }
+};
+
+let currentIndex = 0;
+const container = document.getElementById('quiz-container');
+const navButtons = document.querySelector('.nav-buttons');
+
+// 質問をDOMに描画
+questions.forEach((q, index) => {
+  const card = document.createElement('div');
+  card.className = 'question-card';
+  card.id = `card-${index}`;
+  if (index === 0) card.classList.add('active');
+  
+  card.innerHTML = `
+    <div class="question-text">${q.text}</div>
+    <div class="mobile-labels">
+      <span class="label-agree">同意する</span>
+      <span class="label-disagree">反対する</span>
+    </div>
+    <div class="options-wrapper">
+      <span class="label-text label-agree label-desktop">同意する</span>
+      <label><input type="radio" name="${q.id}" value="2"><span class="circle agree-2"></span></label>
+      <label><input type="radio" name="${q.id}" value="1"><span class="circle agree-1"></span></label>
+      <label><input type="radio" name="${q.id}" value="0"><span class="circle neutral"></span></label>
+      <label><input type="radio" name="${q.id}" value="-1"><span class="circle disagree-1"></span></label>
+      <label><input type="radio" name="${q.id}" value="-2"><span class="circle disagree-2"></span></label>
+      <span class="label-text label-disagree label-desktop">反対する</span>
+    </div>
+  `;
+  container.insertBefore(card, navButtons);
+});
+
+// ナビゲーションの表示更新
+function updateNav() {
+  document.getElementById('prev-btn').disabled = (currentIndex === 0);
+  document.getElementById('q-counter').innerText = `${currentIndex + 1} / 60`;
+  
+  if (currentIndex === questions.length - 1) {
+    document.getElementById('next-btn').style.display = 'none';
+    document.getElementById('submit-btn').style.display = 'block';
+  } else {
+    document.getElementById('next-btn').style.display = 'block';
+    document.getElementById('submit-btn').style.display = 'none';
+  }
+}
+
+// 戻るボタン
+function prevQuestion() {
+  if (currentIndex > 0) {
+    document.getElementById(`card-${currentIndex}`).classList.remove('active');
+    currentIndex--;
+    document.getElementById(`card-${currentIndex}`).classList.add('active');
+    updateNav();
+  }
+}
+
+// 次へボタン
+function nextQuestion() {
+  if (currentIndex < questions.length - 1) {
+    document.getElementById(`card-${currentIndex}`).classList.remove('active');
+    currentIndex++;
+    document.getElementById(`card-${currentIndex}`).classList.add('active');
+    updateNav();
+  }
+}
+
+// 自動遷移処理
+document.addEventListener('change', (e) => {
+  if (e.target.type === 'radio') {
+    const answered = document.querySelectorAll('input[type="radio"]:checked').length;
+    document.getElementById('progress-bar').style.width = (answered / 60 * 100) + '%';
+    
+    setTimeout(() => {
+      if (currentIndex < questions.length - 1) {
+        nextQuestion();
+      }
+    }, 400);
+  }
+});
+
+// 診断集計処理
+function submitQuiz() {
+  const scores = { E: 0, N: 0, T: 0, J: 0 };
+  let unanswered = null;
+
+  for (let i = 0; i < 60; i++) {
+    const q = questions[i];
+    const selected = document.querySelector(`input[name="${q.id}"]:checked`);
+    
+    if (!selected) {
+      if (unanswered === null) unanswered = i;
+    } else {
+      const val = parseInt(selected.value) * q.dir;
+      scores[q.axis] += val;
+    }
+  }
+
+  // 未回答ジャンプ
+  if (unanswered !== null) {
+    alert('未回答の質問があります。');
+    document.getElementById(`card-${currentIndex}`).classList.remove('active');
+    currentIndex = unanswered;
+    document.getElementById(`card-${currentIndex}`).classList.add('active');
+    updateNav();
+    return;
+  }
+
+  // 結果の判定
+  const typeStr = 
+    (scores.E >= 0 ? 'E' : 'I') +
+    (scores.N >= 0 ? 'N' : 'S') +
+    (scores.T >= 0 ? 'T' : 'F') +
+    (scores.J >= 0 ? 'J' : 'P');
+
+  const getPercent = (score) => Math.round(((score + 30) / 60) * 100);
+  
+  const pE = getPercent(scores.E);
+  const pN = getPercent(scores.N);
+  const pT = getPercent(scores.T);
+  const pJ = getPercent(scores.J);
+
+  showResult(typeStr, { E: pE, I: 100-pE, N: pN, S: 100-pN, T: pT, F: 100-pT, J: pJ, P: 100-pJ });
+}
+
+// 結果表示
+function showResult(typeStr, p) {
+  document.getElementById('quiz-page').style.display = 'none';
+  document.getElementById('result-page').style.display = 'block';
+  document.getElementById('progress-container').style.display = 'none';
+  window.scrollTo(0,0);
+
+  const res = typeData[typeStr];
+  const matchRes = typeData[res.match];
+  
+  const resultContainer = document.getElementById('result-container-content');
+  resultContainer.innerHTML = `
+    <div class="result-card">
+      <div class="result-type">${typeStr}</div>
+      <div class="result-title">${res.name}</div>
+      <div class="result-desc">${res.desc}</div>
+      
+      <div class="bar-container">
+        <div class="bar-labels">
+          <span style="color:var(--agree-color)">出たがり (E) ${p.E}%</span>
+          <span style="color:var(--disagree-color)">${p.I}% (I) 観察者</span>
+        </div>
+        <div class="bar-outer"><div class="bar-inner ${p.E >= 50 ? '' : 'right'}" style="width:${Math.max(p.E, p.I)}%"></div></div>
+      </div>
+      
+      <div class="bar-container">
+        <div class="bar-labels">
+          <span style="color:var(--agree-color)">狂気・非日常 (N) ${p.N}%</span>
+          <span style="color:var(--disagree-color)">${p.S}% (S) 常識・共感</span>
+        </div>
+        <div class="bar-outer"><div class="bar-inner ${p.N >= 50 ? '' : 'right'}" style="width:${Math.max(p.N, p.S)}%"></div></div>
+      </div>
+
+      <div class="bar-container">
+        <div class="bar-labels">
+          <span style="color:var(--agree-color)">論理・構成 (T) ${p.T}%</span>
+          <span style="color:var(--disagree-color)">${p.F}% (F) ノリ・感情</span>
+        </div>
+        <div class="bar-outer"><div class="bar-inner ${p.T >= 50 ? '' : 'right'}" style="width:${Math.max(p.T, p.F)}%"></div></div>
+      </div>
+
+      <div class="bar-container">
+        <div class="bar-labels">
+          <span style="color:var(--agree-color)">ボケ・主導 (J) ${p.J}%</span>
+          <span style="color:var(--disagree-color)">${p.P}% (P) ツッコミ・受け</span>
+        </div>
+        <div class="bar-outer"><div class="bar-inner ${p.J >= 50 ? '' : 'right'}" style="width:${Math.max(p.J, p.P)}%"></div></div>
+      </div>
+
+      <div class="match-box">
+        🤝 最も相性の良い相方タイプ<br>
+        <span style="color:var(--agree-color); font-size: 20px;">${res.match}: ${matchRes.name}</span>
+      </div>
+    </div>
+    
+    <button class="nav-btn submit-btn-small" onclick="location.reload()" style="display:block; width:100%; max-width:300px; margin: 40px auto 0;">もう一度診断する</button>
+  `;
+}
+</script>
+</body>
+</html>
